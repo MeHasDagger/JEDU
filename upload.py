@@ -25,11 +25,13 @@ connect.execute(
 # Takes in the upload from the JEDU application and saves it to the database and the disk
 @app.route('/save', methods=['POST'])
 def upload_file():
+    # Makes sure file was sent
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
 
     file = request.files['file']
 
+    # Makes sure the filename isn't empty
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
@@ -55,12 +57,16 @@ def upload_file():
 # Generates a unique hex code for the files
 def generate_unique_hex(cur):
     while True:
+        # Creates a 6 digit long hexadecimal string
         hex = '%6x' % random.getrandbits(24)
         cur.execute('SELECT hex_code FROM Files WHERE hex_code = ?', (hex,))
-        if cur.fetchall():
+
+        # Checks if the cursor doesn't have a value or if it does
+        if cur.fetchone():
             print("Another hex_code found while generating unique hex")
         else:
             return hex
+
 # Makes sure there is only one filename with the same name
 def save_unique_file(file):
     file_name = file.filename
@@ -84,6 +90,7 @@ def files():
     conn.close()
     return render_template("files.html", data=data)  
 
+
 # The download page, takes in a hex code as a parameter 
 # and then sends the file assosiated with that hex code
 @app.route('/file/<hex_code>') 
@@ -93,13 +100,25 @@ def download(hex_code):
     cur.execute('SELECT file_path FROM Files WHERE hex_code = ?', (hex_code,))
     filenames = cur.fetchone()
     conn.close()
+    # Checks if the cursor got a match and if so changes to another html page
     if filenames: 
+        # Ignores the list and only gets the first element
         filename = filenames[0]
-        file_path = os.path.join(FILE_DIRECTORY, f"{filename}")
-        return send_file(file_path, as_attachment=True)  
+        return render_template("downloadfile.html", filename=filename)    
     else:
         return jsonify({'error': 'No file with that hex'}), 400
 
-  
+# 
+@app.route('/download', methods=['POST'])
+def download_file():
+    # Get the string from the request data
+    data = request.json
+    file_name = data.get('fileName')
+
+    # Appends the FILE_DIRECTORY and sends the file
+    file_path = os.path.join(FILE_DIRECTORY, f"{file_name}")
+    return send_file(file_path, as_attachment=True) 
+
+
 if __name__ == '__main__': 
     app.run(debug=False) 
