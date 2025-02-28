@@ -7,6 +7,7 @@ import random
 app = Flask(__name__) 
   
 FILE_DIRECTORY = "files_upload"
+os.makedirs(FILE_DIRECTORY, exist_ok=True)
 
 @app.route('/') 
 @app.route('/home') 
@@ -21,6 +22,7 @@ connect.execute(
         hex_code TEXT NOT NULL UNIQUE, \
         file_path TEXT NOT NULL UNIQUE)') 
 
+# Takes in the upload from the JEDU application and saves it to the database and the disk
 @app.route('/save', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -48,11 +50,9 @@ def upload_file():
     finally:
         conn.close()
 
-    # Remove the temporary file
-    #os.remove(file_path)
-
     return jsonify({'message': 'File uploaded and saved successfully'}), 201
 
+# Generates a unique hex code for the files
 def generate_unique_hex(cur):
     while True:
         hex = '%6x' % random.getrandbits(24)
@@ -61,7 +61,7 @@ def generate_unique_hex(cur):
             print("Another hex_code found while generating unique hex")
         else:
             return hex
-
+# Makes sure there is only one filename with the same name
 def save_unique_file(file):
     file_name = file.filename
     name, ext = os.path.splitext(file_name)
@@ -74,7 +74,7 @@ def save_unique_file(file):
     file.save(os.path.join(FILE_DIRECTORY, f"{file_name}"))
     return file_name
 
-
+# Fetches all the files in the database
 @app.route('/files') 
 def files(): 
     conn = sqlite3.connect('web_files.db') 
@@ -84,12 +84,15 @@ def files():
     conn.close()
     return render_template("files.html", data=data)  
 
+# The download page, takes in a hex code as a parameter 
+# and then sends the file assosiated with that hex code
 @app.route('/file/<hex_code>') 
 def download(hex_code):
     conn = sqlite3.connect('web_files.db') 
     cur = conn.cursor() 
     cur.execute('SELECT file_path FROM Files WHERE hex_code = ?', (hex_code,))
     filenames = cur.fetchone()
+    conn.close()
     if filenames: 
         filename = filenames[0]
         file_path = os.path.join(FILE_DIRECTORY, f"{filename}")
