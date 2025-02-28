@@ -1,0 +1,27 @@
+
+
+<!DOCTYPE html> 
+<html> 
+    <head> 
+        <title>Flask and SQLite </title> 
+    </head> 
+    <style> 
+        table, th, td { 
+          border:1px solid black; 
+        } 
+        </style> 
+    <body> 
+        <table style="width:100%"> 
+            <tr> 
+              <th>id</th> 
+              <th>file name</th> 
+              <th>file</th> 
+            </tr> 
+            {%for files in data%} 
+               <tr> 
+                 <td>{{files[0]}}</td> 
+                </tr> 
+            {%endfor%} 
+          </table>           
+    </body> 
+</html> 

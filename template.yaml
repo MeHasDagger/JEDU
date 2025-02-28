@@ -1,0 +1,13 @@
+start:
+#  - <Command here>
+   - sudo apt install python3
+finish:
+#  - <Command here>
+grade:
+#  - <Command here>:
+#     hint:
+#        - <Hint text here>
+   grep "blabld" evaluation_file:
+      hint:
+         - Do this thing
+   grep "this" evaluation_file:
