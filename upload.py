@@ -1,27 +1,31 @@
 
 from flask import Flask, render_template, request, jsonify, send_file
+from datetime import date, timedelta
 import sqlite3
 import os
 import random
+
   
 app = Flask(__name__) 
   
 FILE_DIRECTORY = "files_upload"
-DOWNLOAD_PAGE_ADDRESS = "http://127.0.0.1:5000/file/"
+FILE_PAGE_ADDRESS = "http://127.0.0.1:5000/file/"
+FILE_MONTHS_REMOVAL = 1
 os.makedirs(FILE_DIRECTORY, exist_ok=True)
 
 @app.route('/') 
 @app.route('/home') 
 def index(): 
     return render_template('index.html') 
-    
+
 # Initiate database
 connect = sqlite3.connect('web_files.db') 
 connect.execute( 
-    'CREATE TABLE IF NOT EXISTS FILES ( \
+    'CREATE TABLE IF NOT EXISTS Files ( \
         id INTEGER PRIMARY KEY AUTOINCREMENT, \
         hex_code TEXT NOT NULL UNIQUE, \
-        file_path TEXT NOT NULL UNIQUE)') 
+        file_path TEXT NOT NULL UNIQUE, \
+        create_date INTEGER NOT NULL)') 
 
 # Takes in the upload from the JEDU application and saves it to the database and the disk
 @app.route('/save', methods=['POST'])
@@ -42,17 +46,19 @@ def upload_file():
     conn = sqlite3.connect("web_files.db")
     cur = conn.cursor()
     hex_code = generate_unique_hex(cur)
+  
+    current_date = date.today().strftime("%Y%m%d")
 
     # Save the file data to the database
     try:
-        cur.execute('INSERT INTO files (hex_code, file_path) VALUES (?, ?)', (hex_code, file_path))
+        cur.execute('INSERT INTO files (hex_code, file_path, create_date) VALUES (?, ?, ?)', (hex_code, file_path, current_date))
         conn.commit()
     except sqlite3.IntegrityError as e:
         print(f"file name already taken: {e}")
         return jsonify({'message': 'Error uploading file'}), 400
     finally:
         conn.close()
-    full_download_page_address = DOWNLOAD_PAGE_ADDRESS + hex_code
+    full_download_page_address = FILE_PAGE_ADDRESS + hex_code
     return jsonify({'message': f'File uploaded and saved successfully. Here is your link: {full_download_page_address}'}), 201
 
 # Generates a unique hex code for the files
@@ -86,7 +92,7 @@ def save_unique_file(file):
 def files(): 
     conn = sqlite3.connect('web_files.db') 
     cur = conn.cursor() 
-    cur.execute('SELECT * FROM FILES') 
+    cur.execute('SELECT * FROM Files') 
     data = cur.fetchall() 
     conn.close()
     return render_template("files.html", data=data)  
@@ -120,6 +126,23 @@ def download_file():
     file_path = os.path.join(FILE_DIRECTORY, f"{file_name}")
     return send_file(file_path, as_attachment=True) 
 
+@app.route('/test', methods=['POST', 'GET'])
+def change_date(): 
+    date = request.args.get('date', default = 20250203, type = int)
+    conn = sqlite3.connect('web_files.db') 
+    cur = conn.cursor() 
+    cur.execute('SELECT hex_code FROM Files') 
+    data = cur.fetchone() 
+    if data: 
+        # Ignores the list and only gets the first element
+        data2 = data[0]
+        print(data2)
+        print(date)
+        cur.execute('UPDATE Files SET create_date = ? WHERE hex_code = ?', (date, data2)) 
+        conn.commit()
+
+    return jsonify({'Message': 'No error, maybe'}), 400
 
 if __name__ == '__main__': 
     app.run(debug=False) 
+    
