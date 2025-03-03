@@ -31,7 +31,7 @@ h1 {
 }
 .form-group {
     display: flex;
-    flex-direction: column; /* Ensures elements stack vertically */
-    align-items: start; /* Aligns elements to the start of the container */
-    gap: 10px; /* Adds spacing between elements */
+    flex-direction: column; 
+    align-items: start; 
+    gap: 10px;
 }
