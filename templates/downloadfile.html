@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JEDU download</title>
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/download.css') }}">
+</head>
+<body>
+    <div class="form-group">
+        <h1>JEDU download</h1>
+    
+        <p id="file-container">{{ filename }}</p>
+        <button id="send-button">Download file</button>
+    </div>
+</body>
+</html>
