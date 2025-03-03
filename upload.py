@@ -1,5 +1,6 @@
 
 from flask import Flask, render_template, request, jsonify, send_file
+from flask_apscheduler import APScheduler
 from datetime import date, timedelta
 import sqlite3
 import os
@@ -7,16 +8,25 @@ import random
 
   
 app = Flask(__name__) 
-  
+scheduler = APScheduler()
+
 FILE_DIRECTORY = "files_upload"
 FILE_PAGE_ADDRESS = "http://127.0.0.1:5000/file/"
 FILE_MONTHS_REMOVAL = 1
 os.makedirs(FILE_DIRECTORY, exist_ok=True)
 
+@scheduler.task('interval', id='do_file_removal', days=2, misfire_grace_time=900)
+def scheduled_file_removal():
+    delete_old_files()
+
+scheduler.start()
+
+
 @app.route('/') 
 @app.route('/home') 
 def index(): 
     return render_template('index.html') 
+
 
 # Initiate database
 connect = sqlite3.connect('web_files.db') 
@@ -26,6 +36,8 @@ connect.execute(
         hex_code TEXT NOT NULL UNIQUE, \
         file_path TEXT NOT NULL UNIQUE, \
         create_date INTEGER NOT NULL)') 
+connect.commit()
+connect.close()
 
 # Takes in the upload from the JEDU application and saves it to the database and the disk
 @app.route('/save', methods=['POST'])
@@ -126,9 +138,27 @@ def download_file():
     file_path = os.path.join(FILE_DIRECTORY, f"{file_name}")
     return send_file(file_path, as_attachment=True) 
 
+def delete_old_files():
+    print("Running removal of old files ")
+   
+    file_life_span = (date.today() - timedelta(days=10)).strftime('%Y%m%d')
+
+    conn = sqlite3.connect('web_files.db') 
+    cur = conn.cursor() 
+
+    cur.execute('SELECT * FROM Files WHERE create_date < ?', (file_life_span,))
+    data = cur.fetchall()
+    print(data)
+
+    cur.execute('DELETE FROM Files WHERE create_date < ?', (file_life_span,))
+
+    conn.commit()
+    conn.close()
+
+# @@@@@@@@@@@@@@@@ REMOVE LATER @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @app.route('/test', methods=['POST', 'GET'])
 def change_date(): 
-    date = request.args.get('date', default = 20250203, type = int)
+    date = request.args.get('date', default = 20250103, type = int)
     conn = sqlite3.connect('web_files.db') 
     cur = conn.cursor() 
     cur.execute('SELECT hex_code FROM Files') 
