@@ -7,6 +7,7 @@ import random
 app = Flask(__name__) 
   
 FILE_DIRECTORY = "files_upload"
+DOWNLOAD_PAGE_ADDRESS = "http://127.0.0.1:5000/file/"
 os.makedirs(FILE_DIRECTORY, exist_ok=True)
 
 @app.route('/') 
@@ -51,8 +52,8 @@ def upload_file():
         return jsonify({'message': 'Error uploading file'}), 400
     finally:
         conn.close()
-
-    return jsonify({'message': 'File uploaded and saved successfully'}), 201
+    full_download_page_address = DOWNLOAD_PAGE_ADDRESS + hex_code
+    return jsonify({'message': f'File uploaded and saved successfully. Here is your link: {full_download_page_address}'}), 201
 
 # Generates a unique hex code for the files
 def generate_unique_hex(cur):

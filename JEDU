@@ -170,8 +170,14 @@ hint() {
     fi
 }
 
+help() {
+    echo "info | upload | lab <start> / <finish> / <grade> / <hint>"
+}
 
-if [ "$1" == "info" ]; then
+if [ -z "$1" ]; then
+    help
+    exit0
+elif [ "$1" == "info" ]; then
     info
     exit 0
 elif [ "$1" == "upload" ] && [ -n "$2" ]; then
