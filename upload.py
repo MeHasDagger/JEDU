@@ -1,5 +1,6 @@
 
 from flask import Flask, render_template, request, jsonify, send_file
+from flask_mail import Mail, Message
 import sqlite3
 import os
 import random
@@ -27,13 +28,17 @@ def upload_file():
         return jsonify({'error': 'No file part'}), 400
 
     file = request.files['file']
+    email = request.form['email']
 
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
     # Save the file to disk and make sure name is unique
     file_path = save_unique_file(file)
-
+    msg = Message('receipt uploaded file', recipients=[email])
+    msg.body = f'Din fil är nu uppladdad: {file.filename}'
+    email.send(msg)
+    
     conn = sqlite3.connect("web_files.db")
     cur = conn.cursor()
     hex_code = generate_unique_hex(cur)
