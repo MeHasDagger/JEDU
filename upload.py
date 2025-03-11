@@ -12,7 +12,7 @@ scheduler = APScheduler()
 
 FILE_DIRECTORY = "files_upload"
 FILE_PAGE_ADDRESS = "http://127.0.0.1:5000/file/"
-FILE_MONTHS_REMOVAL = 1
+DAYS_UNTIL_FILE_REMOVAL = 10
 os.makedirs(FILE_DIRECTORY, exist_ok=True)
 
 @scheduler.task('interval', id='do_file_removal', days=2, misfire_grace_time=900)
@@ -26,7 +26,6 @@ scheduler.start()
 @app.route('/home') 
 def index(): 
     return render_template('index.html') 
-
 
 # Initiate database
 connect = sqlite3.connect('web_files.db') 
@@ -127,7 +126,7 @@ def download(hex_code):
     else:
         return jsonify({'error': 'No file with that hex'}), 400
 
-# 
+# The actual file download that gets accessesed by the javascript on the download page.
 @app.route('/download', methods=['POST'])
 def download_file():
     # Get the string from the request data
@@ -141,17 +140,16 @@ def download_file():
 def delete_old_files():
     print("Running removal of old files ")
    
-    file_life_span = (date.today() - timedelta(days=10)).strftime('%Y%m%d')
+    file_life_span = (date.today() - timedelta(days=DAYS_UNTIL_FILE_REMOVAL)).strftime('%Y%m%d')
 
     conn = sqlite3.connect('web_files.db') 
     cur = conn.cursor() 
 
     cur.execute('SELECT * FROM Files WHERE create_date < ?', (file_life_span,))
     data = cur.fetchall()
-    print(data)
+    print("Deleted files:" + data)
 
     cur.execute('DELETE FROM Files WHERE create_date < ?', (file_life_span,))
-
     conn.commit()
     conn.close()
 
@@ -171,6 +169,7 @@ def change_date():
         cur.execute('UPDATE Files SET create_date = ? WHERE hex_code = ?', (date, data2)) 
         conn.commit()
 
+    conn.close()
     return jsonify({'Message': 'No error, maybe'}), 400
 
 if __name__ == '__main__': 

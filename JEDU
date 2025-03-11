@@ -1,200 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-check_ping() {
-    local host=$1
-    # Ping the host and check the exit status
-    ping -c 4 $host > /dev/null 2>&1
+import sys
 
-    if [ $? -eq 0 ]; then
-        echo "Ping to $host was successful."
-    else
-        echo "Ping to $host failed."
-    fi
-}
 
-check_if_root() {
-    local user=$(whoami)
-    if [ "$user" != "root" ]; then
-        echo "$user (not root)"
-    else 
-        echo $user
-    fi
-}
+def info():
+    print("info")
 
-check_firewalls() {
-    if command -v ufw > /devnull; then
-        echo "$(sudo ufw status)"
-    elif command -v firewall-cmd > /devnull; then
-        echo "$(sudo firewall-cmd --state)"
-    else
-        echo "No firewall installed"
-    fi
-}
+def upload():
+    print("upload")
 
-check_updates() {
-    if command -v yum > /devnull; then
-        echo $(sudo yum check-update)
-    elif command -v apt-get > /devnull; then
-        local result=$(sudo apt --simulate upgrade)
-        echo $result | awk '{for (i=12; i<=NF; i++) printf $i " "; print ""}'
-    else
-        echo "Can not find any commands."
-    fi
-}
+def start(file_name):
+    print("start" + file_name)
 
-info() {
-    #Save the data to variables
-    local_ip=$(hostname -I)
-    gateway=$(ip route | grep default | awk '{print $3}')
-    public_ip=$(curl -s ifconfig.me)
-    ping_8=$(check_ping 8.8.8.8)
-    ping_google=$(check_ping google.com)
-    current_user=$(check_if_root)
-    #REMOVE COMMENT: Vill Jonas ha -tuln eller -l och grep LISTEN?
-    ports=$(ss -tuln | grep LISTEN)
-    firewall_status=$(check_firewalls)
-    #Gathers the Operating System values and takes the value from the 3rd until the final number of record.
-    linux_version=$(hostnamectl | grep "Operating System" | awk '{for (i=3; i<=NF; i++) printf $i " "; print ""}')
-    updates=$(check_updates)
+def finish(file_name):
+    print("finish" + file_name)
 
-    # Save the captured data to a file
-    output_file="JEDU_output.txt"
-    echo -e "The local IP address is: $local_ip\n"\
-    "The gateway address is: $gateway\n"\
-    "The public IP adress is: $public_ip\n"\
-    "$ping_8\n"\
-    "$ping_google\n"\
-    "The current user is: $current_user\n"\
-    "The listening ports are: \n$ports\n"\
-    "The firewall status is: $firewall_status\n"\
-    "The linux version installed is: $linux_version\n"\
-    "Updates dd: $updates\n"\
-    > $output_file
+def grade(file_name):
+    print("grade" + file_name)
 
-    # Confirm the file creation
-    echo "JEDU output saved to $output_file"
-}
+def hint(file_name):
+    print("hint" + file_name)
 
-upload_file() {
-    local file_path=$1
 
-    # Check if the file exists
-    if [ ! -f "$file_path" ]; then
-        echo "File not found: $file_path"
-        exit 1
-    fi
+if len(sys.argv) > 4: 
+    print("Usage: JEDU <arg1> <arg2> <arg3>")
+    sys.exit(1)
 
-    # URL of the API endpoint
-    API_URL="127.0.0.1:5000/save"
+command_arg = sys.argv[1]
 
-    # Send the file using curl
-    response=$(curl -s -X POST "$API_URL" \
-         -H "Content-Type: multipart/form-data" \
-         -F "file=@$file_path")
-
-    # Output the response
-    echo "Response: $response"
-}
-
-FLAG_FILE="/tmp/lab_running"
-
-is_running() {
-    if [[ -f $FLAG_FILE ]]; then
-        return 0 # True, the file exists
-    else
-        return 1 # False, the file does not exist
-    fi
-}
-
-execute_commands() {
-    local file_name=$1
-    local search_phrase=$2
-    yq $search_phrase $file_name | while read -r cmd; do
-        echo "--- Executing: $cmd ---"
-        eval $cmd
-    done
-}
-
-start() {
-    if is_running; then
-        echo "Another lab is already running. Please finish it before starting a new one."
-    else
-        touch $FLAG_FILE
-        echo "The lab $file_name is starting..."
-        execute_commands $1 '.start[]'
-    fi
-}
-
-finish() {
-    if is_running; then
-        rm $FLAG_FILE
-        execute_commands $1 '.finish[]'
-        echo "Lab is finished."
-    else
-        echo "No lab is currently running."
-    fi
-}
-
-grade() {
-    local file_name=$1
-    yq '.grade | keys | .[]' $file_name | while read -r cmd; do
-        if eval $cmd; then
-            echo "Correct: $cmd"
-        else 
-            echo "Wrong: $cmd"
-        fi
-    done
-}
-
-hint() {
-    HINT_FLAG_FILE="/tmp/lab_hint_flag"
-    local file_name=$1
-    yq '.grade | keys | .[]' $file_name | while read -r top_key; do
-        if ! eval $top_key > /dev/null; then
-            #NEEDS MORE TESTING @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-            # Changes double quotationmarks to '/'' instead. So that yq can use the string.
-            escaped_key=$(printf "%s" "$top_key" | sed 's/"/\\"/g')
-            path=".grade.[\"$escaped_key\"]"
-            # Would be nice to remove the "-" that comes with.
-            yq "$path.[]" "$file_name" | while read -r cmd; do
-                echo "Hint: $cmd"
-                touch $HINT_FLAG_FILE
-            done
-            break
-        fi
-    done
-    if [[ ! -f $HINT_FLAG_FILE ]]; then
-        echo "No hints found, sorry!"
-    else
-        rm $HINT_FLAG_FILE
-    fi
-}
-
-help() {
-    echo "info | upload | lab <start> / <finish> / <grade> / <hint>"
-}
-
-if [ -z "$1" ]; then
-    help
-    exit0
-elif [ "$1" == "info" ]; then
-    info
-    exit 0
-elif [ "$1" == "upload" ] && [ -n "$2" ]; then
-    upload_file "$2"
-    exit 0
-elif [ "$1" == "lab" ] && [ -n "$2" ] && [ -n "$3" ]; then
-    if [ "$2" == "start" ]; then
-        start $3
-        exit 0
-    elif [ "$2" == "finish" ]; then
-        finish $3
-        exit 0
-    elif [ "$2" == "grade" ]; then
-        grade $3
-        exit 0
-    elif [ "$2" == "hint" ]; then
-        hint $3
-        exit 0
-    fi
-fi
+if command_arg == "info":
+    info()
+elif command_arg == "upload" and len(sys.argv) > 2:
+    upload()
+elif command_arg == "lab" and len(sys.argv) > 3:
+    option_arg = sys.argv[2]
+    file_arg = sys.argv[3]
+    if option_arg == "start":
+        start(file_arg)
+    elif option_arg == "finish":
+        finish(file_arg)
+    elif option_arg == "grade":
+        grade(file_arg)
+    elif option_arg == "hint":
+        hint(file_arg)
