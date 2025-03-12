@@ -1,12 +1,18 @@
+<!DOCTYPE html>
+<html>
+<body>
 
-<!DOCTYPE html> 
-<html> 
-    <head> 
-        <title>Flask and SQLite </title> 
-    </head> 
-    <body> 
-        <h1>Build Web App Using Flask and SQLite</h1> 
-        
-     
-    </body> 
-</html> 
+<h1>Enter your data</h1>
+
+<form action="/save" method="post">
+  <label for="fname">Your Email:</label>
+  <input type="text" id="mailadress" name="mailadress"><br><br>
+  <label for="fname">Search file:</label>
+  <input type="file" id="filename" name="filename"><br><br>
+  <input type="submit" value="Submit">
+</form>
+
+<p>Click the "Submit" button to upload your file to the system".</p>
+
+</body>
+</html>

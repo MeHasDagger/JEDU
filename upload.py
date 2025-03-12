@@ -45,7 +45,7 @@ def upload_file():
 
     # Save the file data to the database
     try:
-        cur.execute('INSERT INTO files (hex_code, file_path) VALUES (?, ?)', (hex_code, file_path))
+        cur.execute('INSERT INTO files (hex_code, file_path, ID) VALUES (?, ?, ?)', (hex_code, file_path, email))
         conn.commit()
     except sqlite3.IntegrityError as e:
         print(f"file name already taken: {e}")
@@ -102,6 +102,15 @@ def download(hex_code):
     else:
         return jsonify({'error': 'No file with that hex'}), 400
 
+#Configurate flask-mail
+app.config['MAIL_SERVER'] = 'smtp.example.com' #Need to fix smtp-server
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'your_email@example.com' #change examplemail...
+app.config['MAIL_PASSWORD'] = 'your_password' #change to secure password
+app.config['MAIL_DEFAULT_SENDER'] = 'your_email@example.com' #change to same email as above
+
+mail = Mail(app) 
   
 if __name__ == '__main__': 
     app.run(debug=False) 
