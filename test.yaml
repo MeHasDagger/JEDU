@@ -1,0 +1,17 @@
+
+start:
+   - sudo apt install curl
+   - sudo apt install python3
+finish:
+grade:
+   Change to here in test2:
+      grep "Here" test2:
+         hint:
+            - Do this instead
+   Change to blabla test2:
+      grep "blablad" test2:
+         hint:
+            - Or this
+   Change to this in test2:
+      grep "that" test2:
+      
