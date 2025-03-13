@@ -66,7 +66,7 @@ def upload_file():
         conn.commit()
     except sqlite3.IntegrityError as e:
         print(f"file name already taken: {e}")
-        return jsonify({'message': 'Error uploading file'}), 400
+        return jsonify({'error': 'Error uploading file'}), 400
     finally:
         conn.close()
     full_download_page_address = FILE_PAGE_ADDRESS + hex_code

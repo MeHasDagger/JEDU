@@ -1,37 +1,277 @@
 #!/usr/bin/env python3
 
 import sys
+import subprocess
+import os
+import requests
+import yaml
 
 
-def info():
-    print("info")
 
-def upload():
-    print("upload")
+def run_linux_command(command):
+    try:
+        result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
 
-def start(file_name):
-    print("start" + file_name)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        return None
 
-def finish(file_name):
-    print("finish" + file_name)
+def run_linux_command_pipe(command):
+    try:
+        result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
 
-def grade(file_name):
-    print("grade" + file_name)
+        return result
+    except subprocess.CalledProcessError as e:
+        return None
 
-def hint(file_name):
-    print("hint" + file_name)
+def ping_server(host):
+    try:
+        result = subprocess.run(['ping', '-c', '4', host], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
+        if result.returncode == 0: # 0 = Succesful
+            return f"Ping to {host} was successful"
+        else:
+            return f"Ping to {host} failed"
+
+    except Exception as e:
+        print("An error occurred: " + e)
+
+def check_firewall(): 
+    try:
+        firewall_text = ""
+        ufw_result = subprocess.run(['sudo', 'ufw', 'status'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if ufw_result.returncode == 0:
+            firewall_text += "UFW" + ufw_result.stdout
+        else:
+            firewall_text += "UFW" + ufw_result.stderr
+        
+        firewalld_result = subprocess.run(['sudo', 'firewall-cmd', '--state'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if firewalld_result.returncode == 0:
+            status = firewalld_result.stdout.strip()
+            if status == "running":
+                firewall_text += "Firewalld is active."
+            else:
+                firewall_text += "Firewalld is not active."
+        else:
+            firewall_text += "Firewalld is not installed."
+
+        return firewall_text
+    except Exception as e:
+        print("An error occurred: " + e)
+
+def check_updates():
+    try:
+        yum_result = run_linux_command_pipe("command -v yum")
+        if yum_result and yum_result.returncode == 0 :
+            return run_linux_command("sudo yum check-update")
+        else: 
+            apt_get_result = run_linux_command_pipe("command -v apt-get")
+            if apt_get_result.returncode == 0:
+                return run_linux_command("sudo apt --simulate upgrade")
+            return "Error: no update commands found"
+
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+def gather_info():
+    info_text = ""
+    info_text += "The local IP address is: " + run_linux_command("hostname -I")
+    info_text += "The gateway address is: " + run_linux_command("ip route | grep default | awk '{print $3}'")
+    info_text += "The public IP address is: " + run_linux_command("curl -s ifconfig.me")
+    info_text += "\n" + ping_server("8.8.8.8")
+    info_text += "\n" + ping_server("google.com")
+    info_text += "\nThe current user is: " + run_linux_command("whoami")
+    info_text += "The listening ports are: " + run_linux_command("ss -tuln | grep LISTEN")
+    info_text += check_firewall()
+    info_text += "\nThe linux version installed is: " + run_linux_command('''hostnamectl | grep "Operating System" | awk '{for (i=3; i<=NF; i++) printf $i " "; print ""}' ''')
+    info_text += "--- Updates: ---\n" + check_updates()
+    return info_text
+
+def info(file_path):
+    with open(file_path, 'w') as file:
+        file.write(gather_info())
+    
+def upload(file_path):
+    API_url = "http://127.0.0.1:5000/save"
+
+    with open(file_path, 'r') as file:
+        files = {'file': file}
+        response = requests.post(API_url, files=files)    
+
+        if response.status_code == 201:
+            print(response.json().get('message'))
+        else:
+            print(response.json().get('error'))
+
+def print_values_from_file(file_path, search_key):
+    with open(file_path, 'r') as file:
+        commands = extract_values_at_first_level(file, search_key)
+        if commands:
+            for command in commands:
+                print(run_linux_command(command))            
+
+def extract_values_at_first_level(yaml_content, target_key):
+    # Parse the YAML content
+    data = yaml.safe_load(yaml_content)
+    
+    # Check if the target key exists at the first level
+    if target_key in data:
+        # Extract the values under the target key
+        return data[target_key]
+    else:
+        return None
+    
+    
+
+FLAG_FILE = "/tmp/lab_running"
+
+def start(file_path):
+    if os.path.exists(FLAG_FILE):
+        print("Another lab is already running. Please finish it before starting a new one.")
+        exit(1)
+
+    with open(FLAG_FILE, 'w') as file:
+        file.write("") 
+    
+    print_values_from_file(file_path, "start")
+
+
+
+def finish(file_path):
+    if os.path.exists(FLAG_FILE):
+        os.remove(FLAG_FILE)
+
+        print("Lab is finished")
+    else:
+        print("No lab is currently running")
+
+def get_description_from_yaml(data, top_key):
+    # Parse the YAML content
+
+    # Check if the top-level key exists
+    if top_key in data:
+        # Extract the second-level dictionary
+        second_level = data[top_key]
+
+        # Check if the second level is a dictionary
+        if isinstance(second_level, dict):
+            # Extract all keys at the second level
+            return list(second_level.keys())
+        else:
+            return None
+    else:
+        return None
+
+def get_commands_from_yaml(data, top_key):
+    # Parse the YAML content
+
+
+    # Check if the top-level key exists
+    if top_key in data:
+        # Extract the second-level dictionary
+        second_level = data[top_key]
+
+        # Check if the second level is a dictionary
+        if isinstance(second_level, dict):
+            third_level_keys = []
+            for key, value in second_level.items():
+                # Check if the value is a dictionary (third level)
+                if isinstance(value, dict):
+                    third_level_keys.extend(value.keys())
+            return third_level_keys
+        else:
+            return None
+    else:
+        return None
+
+checkbox = '\u2714'
+cross = '\u2716'
+
+def grade(file_path):
+    top_key = "grade"
+    descriptions = []
+    commands = []
+    with open(file_path, 'r') as file:
+        data = yaml.safe_load(file)
+        descriptions = get_description_from_yaml(data, top_key)
+        commands = get_commands_from_yaml(data, top_key)
+
+    for index, command in enumerate(commands):
+        result = run_linux_command_pipe(command)
+        if (result and result.returncode == 0):
+            print(f"{descriptions[index]} {checkbox}")
+        else:
+            print(f"{descriptions[index]} {cross}")
+
+def test(commands):
+    for index, command in enumerate(commands):
+        result = run_linux_command_pipe(command)
+        if (not result):
+            return index
+
+def hint_yaml(file_path, index):
+    with open(file_path, 'r') as file:
+        data = yaml.safe_load(file)
+
+        top_key = "grade"
+        if top_key in data:
+            second_level = data[top_key]
+
+            if isinstance(second_level, dict):
+                second_level_values = list(second_level.values())
+
+                # Access the element at the specified index
+                if 0 <= index < len(second_level_values):
+                    element_at_index = second_level_values[index]
+                    target_key = "hint"
+                    if isinstance(element_at_index, dict):
+
+                        for key, value in element_at_index.items():
+                            if isinstance(value, dict):
+                                # Checks if "hint" is present
+                                if list(value.keys())[0] == target_key:     # Have to convert it to a list and take the first element to get rid of the dictionary and "[]"
+                                    hint_text = value.values()  # Same thing here, but have to do first element twice because it's one level deeper
+                                    return list(hint_text)[0][0]    
+                else:
+                    print(f"Index {index} is out of range.")
+            else:
+                print("The second level is not a dictionary.")
+        else:
+            print(f"The key '{top_key}' does not exist in the YAML file.")
+    return "No hint found"
+
+def hint(file_path):
+    
+    commands = []
+    with open(file_path, 'r') as file:
+        data = yaml.safe_load(file)
+        
+        commands = get_commands_from_yaml(data, "grade")
+    
+        #data2 = get_hint_from_yaml(data, "grade") 
+        
+    index = test(commands)
+    hint = hint_yaml(file_path, index)
+    print(f"*Hint* {hint}")    
+    
 
 if len(sys.argv) > 4: 
     print("Usage: JEDU <arg1> <arg2> <arg3>")
     sys.exit(1)
 
+#hint("test.yaml")
+#command_arg = "f"
 command_arg = sys.argv[1]
 
-if command_arg == "info":
-    info()
+
+if command_arg == "info" and len(sys.argv) > 2:
+    write_file = sys.argv[2]
+    info(write_file)
 elif command_arg == "upload" and len(sys.argv) > 2:
-    upload()
+    file_path = sys.argv[2]
+    upload(file_path)
 elif command_arg == "lab" and len(sys.argv) > 3:
     option_arg = sys.argv[2]
     file_arg = sys.argv[3]
