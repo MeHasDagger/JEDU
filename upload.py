@@ -2,13 +2,24 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_apscheduler import APScheduler
 from datetime import date, timedelta
+from dotenv import load_dotenv
 import sqlite3
 import os
 import random
 
+
+
   
 app = Flask(__name__) 
+# Initialize the scheduler
 scheduler = APScheduler()
+# Load enviorment variables
+dotenv_path = os.path.join(os.path.dirname(__file__), 'secret_keys.env')
+load_dotenv(dotenv_path)
+
+UPLOAD_KEY = os.getenv('UPLOAD_KEY')
+DATABASE_URL = os.getenv('DATABASE_URL')
+
 
 FILE_DIRECTORY = "files_upload"
 FILE_PAGE_ADDRESS = "http://127.0.0.1:5000/file/"
@@ -25,7 +36,7 @@ scheduler.start()
 @app.route('/') 
 @app.route('/home') 
 def index(): 
-    return render_template('index.html') 
+    return render_template(DATABASE_URL) 
 
 # Initiate database
 connect = sqlite3.connect('web_files.db') 
@@ -37,6 +48,7 @@ connect.execute(
         create_date INTEGER NOT NULL)') 
 connect.commit()
 connect.close()
+
 
 # Takes in the upload from the JEDU application and saves it to the database and the disk
 @app.route('/save', methods=['POST'])
@@ -51,10 +63,26 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
+    if 'Authorization' not in request.headers:
+        return jsonify({'error': 'No selected file'}), 400
+    
+    auth_header = request.headers.get('Authorization')
+    
+    # Assuming the format is "Bearer <token>"
+    if auth_header.startswith('Bearer '):
+        received_key = auth_header.split(' ')[1]
+        print(received_key)
+        print(UPLOAD_KEY)
+        if received_key != UPLOAD_KEY:
+             return jsonify({'error': 'Invalid Authorization header key'}), 401
+    else:
+        return jsonify({'error': 'Invalid Authorization header format'}), 401
+    
+
     # Save the file to disk and make sure name is unique
     file_path = save_unique_file(file)
 
-    conn = sqlite3.connect("web_files.db")
+    conn = sqlite3.connect(DATABASE_URL)
     cur = conn.cursor()
     hex_code = generate_unique_hex(cur)
   
@@ -101,11 +129,12 @@ def save_unique_file(file):
 # Fetches all the files in the database
 @app.route('/files') 
 def files(): 
-    conn = sqlite3.connect('web_files.db') 
+    conn = sqlite3.connect(DATABASE_URL) 
     cur = conn.cursor() 
     cur.execute('SELECT * FROM Files') 
     data = cur.fetchall() 
     conn.close()
+    
     return render_template("files.html", data=data)  
 
 
@@ -113,7 +142,7 @@ def files():
 # and then sends the file assosiated with that hex code
 @app.route('/file/<hex_code>') 
 def download(hex_code):
-    conn = sqlite3.connect('web_files.db') 
+    conn = sqlite3.connect(DATABASE_URL) 
     cur = conn.cursor() 
     cur.execute('SELECT file_path FROM Files WHERE hex_code = ?', (hex_code,))
     filenames = cur.fetchone()
@@ -142,7 +171,7 @@ def delete_old_files():
    
     file_life_span = (date.today() - timedelta(days=DAYS_UNTIL_FILE_REMOVAL)).strftime('%Y%m%d')
 
-    conn = sqlite3.connect('web_files.db') 
+    conn = sqlite3.connect(DATABASE_URL) 
     cur = conn.cursor() 
 
     cur.execute('SELECT * FROM Files WHERE create_date < ?', (file_life_span,))
@@ -157,7 +186,7 @@ def delete_old_files():
 @app.route('/test', methods=['POST', 'GET'])
 def change_date(): 
     date = request.args.get('date', default = 20250103, type = int)
-    conn = sqlite3.connect('web_files.db') 
+    conn = sqlite3.connect(DATABASE_URL) 
     cur = conn.cursor() 
     cur.execute('SELECT hex_code FROM Files') 
     data = cur.fetchone() 

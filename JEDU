@@ -98,7 +98,8 @@ def upload(file_path):
 
     with open(file_path, 'r') as file:
         files = {'file': file}
-        response = requests.post(API_url, files=files)    
+        headers = {'Authorization': 'Bearer VERY_SECRET'}
+        response = requests.post(API_url, files=files, headers=headers)    
 
         if response.status_code == 201:
             print(response.json().get('message'))
