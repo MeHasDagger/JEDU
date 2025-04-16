@@ -1,9 +1,8 @@
-# Python virtual environment
-venv/
+# Python virtual environmenvenv/
 *.venv/
 env/
 
-# Secrets (om du inte redan har den)
+# Secrets (if this is not already existing)
 secret_keys.env
 
 # Databases
@@ -19,10 +18,10 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Output files (från din status)
+# Output files (from status)
 JEDU_output*.txt
 
-# Gamla/test-skript (om du inte vill ha med dem)
+# Old/test-script (if you dont want to include them)
 unchanged-upload.py
 upload1.py
 upload_script.py
