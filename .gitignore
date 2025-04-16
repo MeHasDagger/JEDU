@@ -1,0 +1,28 @@
+# Python virtual environment
+venv/
+*.venv/
+env/
+
+# Secrets (om du inte redan har den)
+secret_keys.env
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python cache/compiled files
+__pycache__/
+*.py[cod]
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Output files (från din status)
+JEDU_output*.txt
+
+# Gamla/test-skript (om du inte vill ha med dem)
+unchanged-upload.py
+upload1.py
+upload_script.py
