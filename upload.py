@@ -378,7 +378,7 @@ Your File Upload Service
     message['To'] = receiver_email
 
     try:
-        # Connect to SMTP server and send
+        # Connect to SMTP server and send 
         # Example for TLS (most common)
         context = smtplib.ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
